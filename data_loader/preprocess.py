@@ -8,24 +8,35 @@ from os.path import isfile
 
 class DataPreprocessor:
     """
-    This class reads data from 'data' folder and creates a CSV file to feed the DNN
+    This class reads data from the 'data' folder and creates a CSV file to feed the DNN
     """
 
     def __init__(self):
         self.data_path = os.path.join(os.path.dirname(__file__), '..', 'data')
+        self.txt_files = [f for f in os.listdir(self.data_path) if
+                          (isfile(os.path.join(self.data_path, f)) and not f.startswith('RUL'))]
+        self.train_csv_files = []
+        self.test_csv_files = []
 
     def preprocess(self):
-        txt_files = [f for f in os.listdir(self.data_path) if isfile(os.path.join(self.data_path, f))]
-        for txt_file in txt_files:
-            self.generate_csv(txt_file)
+        """
+        Generates a csv file for each file in the folder
+        """
+        for txt_file in self.txt_files:
+            self._generate_csv(txt_file)
+        self.train_csv_files = [self._get_processed_file_path(f) for f in self.txt_files if f.startswith('train')]
+        self.test_csv_files = [self._get_processed_file_path(f) for f in self.txt_files if f.startswith('test')]
 
-    def generate_csv(self, fname):
+    def get_files_at_index(self, index):
+        return self.train_csv_files[index], self.test_csv_files[index]
+
+    def _generate_csv(self, fname):
         """
         Creates a csv file from txt file
         :param fname: source .txt file (i.e. train_FD002.txt) 
         """
         txt_path = os.path.join(self.data_path, fname)
-        csv_path = os.path.join(self.data_path, 'processed', fname.replace('.txt', '.csv'))
+        csv_path = self._get_processed_file_path(fname)
         engine_count = DataPreprocessor.get_time_series_for_each_engine(txt_path)
 
         os.makedirs(os.path.dirname(csv_path), exist_ok=True)
@@ -44,6 +55,9 @@ class DataPreprocessor:
                     engine_count[unit] -= 1
                     columns.append(engine_count[unit])
                     filewriter.writerow(columns)
+
+    def _get_processed_file_path(self, fname):
+        return os.path.join(self.data_path, 'processed', fname.replace('.txt', '.csv'))
 
     @staticmethod
     def get_time_series_for_each_engine(fpath):
