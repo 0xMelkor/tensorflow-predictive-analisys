@@ -18,12 +18,16 @@ class DataPreprocessor:
         self.train_csv_files = []
         self.test_csv_files = []
 
-    def preprocess(self):
+    def preprocess(self, force=False):
         """
         Generates a csv file for each file in the folder
+        :param force: Force csv generation even if target folder is not empty 
         """
-        for txt_file in self.txt_files:
-            self._generate_csv(txt_file)
+
+        # Generate only if force is True or the target directory already contains data
+        if force or not self._already_generated():
+            for txt_file in self.txt_files:
+                self._generate_csv(txt_file)
         self.train_csv_files = [self._get_processed_file_path(f) for f in self.txt_files if f.startswith('train')]
         self.test_csv_files = [self._get_processed_file_path(f) for f in self.txt_files if f.startswith('test')]
 
@@ -56,8 +60,16 @@ class DataPreprocessor:
                     columns.append(engine_count[unit])
                     filewriter.writerow(columns)
 
+    def _already_generated(self):
+        # FIXME: Use a more robust approach
+        flist = os.listdir(self._get_processed_files_dir())
+        return len(flist) == 8
+
     def _get_processed_file_path(self, fname):
-        return os.path.join(self.data_path, 'processed', fname.replace('.txt', '.csv'))
+        return os.path.join(self._get_processed_files_dir(), fname.replace('.txt', '.csv'))
+
+    def _get_processed_files_dir(self):
+        return os.path.join(self.data_path, 'processed')
 
     @staticmethod
     def get_time_series_for_each_engine(fpath):
