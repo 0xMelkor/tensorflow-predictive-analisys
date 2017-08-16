@@ -1,7 +1,7 @@
 import unittest
 
 from data_loader.preprocess import DataPreprocessor
-
+from app import RUL
 """
                              ...----....
                          ..-:"''         ''"-..
