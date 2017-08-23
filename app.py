@@ -16,10 +16,7 @@ del os.environ['TCL_LIBRARY']
 class RUL:
     def __init__(self, data_processor):
         self.data_proc = data_processor
-
-    def preprocess_data(self):
-        # Generate csv files from dataset
-        self.data_proc.preprocess(force=False)
+        self.plot_index = 1
 
     def load_data(self, dataset_index, skip_columns=None):
         """
@@ -28,6 +25,7 @@ class RUL:
         :param skip_columns: list of columns to be removed from the dataset
         :return: training a tens data and labels
         """
+        self.data_proc.preprocess(force=False)
         if skip_columns is None:
             skip_columns = []
 
@@ -49,8 +47,8 @@ class RUL:
         np_test_y = np.array(test_y, dtype=np.float32)
         np_test_y = np_test_y[:, np.newaxis]  # add one axis
 
-        return RUL.normalize_columns(np_train_x),\
-               RUL.normalize_columns(np_train_y),\
+        return RUL.normalize_columns(np_train_x), \
+               RUL.normalize_columns(np_train_y), \
                RUL.normalize_columns(np_test_x), \
                RUL.normalize_columns(np_test_y)
 
@@ -58,17 +56,33 @@ class RUL:
     def normalize_columns(input_array):
         return input_array / input_array.max(axis=0)
 
-    @staticmethod
-    def show_plot(predicted_data, real_data, num_points):
-
+    def make_plot(self, predicted_data, real_data, num_points, mode, save_fname ):
+        """
+        Makes a plot for the given input
+        :param predicted_data: nparray for predicted data
+        :param real_data: nparray for real data (same size of predicted)
+        :param num_points: number of points to be showed, less or at most equal to len(predicted)
+        :param mode: enum{'save', 'show'}
+        :param save_fname: If provided the image will be saved to file. The file name for the image to save
+        """
         if num_points:
             predicted_data = predicted_data[0:num_points]
             real_data = real_data[0:num_points]
 
         x_axis = np.arange(0, len(predicted_data), 1)
+        plt.figure(self.plot_index)
         plt.plot(x_axis, predicted_data, marker='o', linestyle='--', label='predicted')
         plt.plot(x_axis, real_data, marker='x', label='real data')
-        plt.show()
+
+        self.plot_index += 1
+
+        if mode != 'save':
+            plt.show()
+        else:
+            dest_dir = os.path.join(os.path.dirname(__file__), 'plots')
+            dest_file = os.path.join(dest_dir,save_fname)
+            os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+            plt.savefig(dest_file)
 
     @staticmethod
     def build_neural_network(input_len):
@@ -97,21 +111,23 @@ class RUL:
 
 
 # params
-batch_size = 128
-n_epoch = 50
+BATCH_SIZE = 128
+N_EPOCHS = 50
 
 rul = RUL(data_processor=DataPreprocessor())
-rul.preprocess_data()
 data_train_x, data_train_y, test_x, test_y = rul.load_data(dataset_index=0, skip_columns=[0])
 
 # Define model
 net = RUL.build_neural_network(data_train_x.shape[1])
 model = tflearn.DNN(net)
 
-# Start training (apply gradient descent algorithm)
-model.fit(data_train_x, data_train_y, n_epoch=n_epoch, batch_size=batch_size, show_metric=True)
+# Start training
+epoch = 1
+for epoch in range(N_EPOCHS):
+    model.fit(data_train_x, data_train_y, n_epoch=1, batch_size=BATCH_SIZE,show_metric=True)
+    prediction = model.predict(data_train_x)
+    rul.make_plot(predicted_data=prediction, real_data=data_train_y,
+                  num_points=2000, mode='save', save_fname='epoch_%s' % epoch)
+
 print("Optimization finished!")
 
-prediction = model.predict(data_train_x)
-
-RUL.show_plot(predicted_data=prediction, real_data=data_train_y, num_points=2000)
